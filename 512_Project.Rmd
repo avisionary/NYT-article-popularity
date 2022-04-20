@@ -1,0 +1,78 @@
+---
+title: "512_Project"
+author: "Olivier Kuhn de Chizelle"
+date: "4/20/2022"
+output: html_document
+---
+
+```{r packages, include = FALSE}
+library(randomForest) #for random forests
+library(caret) # for CV folds and data splitting
+library(ROCR) # for diagnostics and ROC plots/stats
+library(pROC) # same as ROCR
+library(stepPlr) # Firth;s logit implemented thru caret library
+library(doParallel) # for using multiple processor cores
+library(skimr)
+library(gt)
+library(corrplot)
+library(GGally)
+library(cvms)
+library(tibble)
+```
+
+
+```{r Load data}
+
+#Load in Data
+water = read.csv('./data/water_potability.csv')
+
+#Transform potabiltiy into a 2 level labeled factor
+water$Potability = factor(
+  water$Potability,
+  levels = c(0,1),
+  labels = c('no','yes'))
+  
+water = na.omit(water)
+water_clean = subset(water, select = -c(Potability))
+
+
+
+```
+
+```{r Adaboost}
+library(adabag)
+library(xgboost)
+
+set.seed(322)
+
+tc<-trainControl(method="cv", 
+                 number=10, #creates CV folds - 10 for this data
+                 summaryFunction=twoClassSummary, # provides ROC summary stats in call to model
+                 savePredictions = TRUE,
+                 returnData = TRUE,
+                 classProbs = TRUE)
+
+adaboost.Model = train(as.factor(Potability) ~., metric = 'ROC', method = 'adaboost', trControl = tc, data = water)
+adaboost.Accuracy = sum(adaboost.Model$pred$pred == adaboost.Model$pred$obs) / length(adaboost.Model$pred$pred)
+
+
+```
+
+```{r TreeBag}
+
+set.seed(322)
+
+tc<-trainControl(method="cv", 
+                 number=10, #creates CV folds - 10 for this data
+                 summaryFunction=twoClassSummary, # provides ROC summary stats in call to model
+                 savePredictions = TRUE,
+                 returnData = TRUE,
+                 classProbs = TRUE)
+
+treebag.Model = train(as.factor(Potability) ~., metric = 'ROC', method = 'treebag', trControl = tc, control = rpart.control(minsplit = 2, cp  = 0), data = water)
+
+treebag.Accuracy = sum(treebag.Model$pred$pred == treebag.Model$pred$obs) / length(treebag.Model$pred$pred)
+
+```
+
+
