@@ -60,6 +60,7 @@ Race_Politics_Barplot = ggplot(data = counts, aes(x = is_political, y = Freq, fi
         panel.grid.major = element_line(colour ='#e3d5b8'),
         panel.grid.minor = element_line(colour ='#e3d5b8'),
         legend.background = element_rect(fill = '#fff1d4'))
+
 ggsave('../images/Race_Politics_BarPlot.png', plot = Race_Politics_Barplot)
 # plot(Race_Politics_Barplot)
 
