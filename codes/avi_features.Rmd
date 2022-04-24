@@ -1,0 +1,442 @@
+---
+title: "Feature Generation - NY Times"
+author: "Avi Arora"
+date: "4/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(skimr)
+library(knitr)
+library(naniar)
+library(GGally)
+library(styler)
+library(ggtext)
+library(data.table)
+library(grid)
+library(timeDate)
+library(plotly)
+```
+
+# Introduction
+
+# Data
+
+Data has been gathered from Kaggle. The data talks about the New York Times articles in the year 2020. The unique identifier in terms of data is Headline and Abstract which talk about the Headline about the article. Then there are also columns that tell us the which department was the news worked on and which sections did it appear in the most. The aim is to analyze popularity of articles. For that, there is a column of number of comments.
+
+```{r data}
+# Reading in data set
+nyt_articles <- read_csv("../data/nyt-articles-2020.csv")
+```
+
+
+## Data Engineering
+
+### Null Values
+First thing we do is we try to check the number of missing values for every variable in our dataset 
+```{r}
+# checking missing values
+nyt_articles |> 
+  miss_var_summary() |> 
+  ggplot(aes(x = stats::reorder(variable, n_miss),
+             y = n_miss)) +
+  geom_bar(stat = "identity",
+           position = "dodge",
+           width = 0.05,
+           show.legend = FALSE) + 
+  geom_point() +
+  coord_flip() +
+  theme_classic()+
+  labs(
+    x = "Variables",
+    y = "Count of missing values",
+    title = paste0("**Initial plot of *missing* values**"),
+    # caption = "<span style='font-size:8pt'>Data by:
+    # <span style='color:#756bb1;'>Dr. Katsuhiko Takabayashi</span> <br> Graph by:
+    # <span style='color:#756bb1;'>Avi Arora</span>
+    # </span>"
+      )+
+    theme(
+      plot.title = element_markdown(lineheight = 1.5),
+      plot.caption = element_markdown(lineheight = 1.1))
+
+```
+
+We can see that Subsection has 67% values as missing values. Hence we remove that coulmn from our analysis
+
+```{r}
+# Since Subsection is almost empty, we remove it
+nyt_articles <- nyt_articles |> select(-subsection)
+```
+
+### Duplicate Values
+
+```{r}
+nyt_articles <- nyt_articles |> mutate(text = paste(headline , "." , abstract))
+duplicate_articles <- nyt_articles[duplicated(nyt_articles$text),]
+```
+
+
+### Target Varialble - Popularity
+
+To judge whether an article is popular or not, we use the column number of comments. The idea is that more the comments, more famous the article is.
+
+Problem - One biggest problem in defining popularity stems from how the data has been collected. Since the number of comments are the comments on a specific article for that month, the later the day is in month, the less number of articles.
+
+Solution - There are multiple ways to deal with this problem and none of them is perfect. The way we are trying to resolve this is by defining the threshold for popularity based on the week number of the month. So, the threshold for popularity will be different for week 1 and different for week 4 in a month, giving week 4 some breathing space in terms of number of comments.
+
+```{r}
+# Getting hour of the day
+nyt_articles <- nyt_articles |> mutate(hour = format(pub_date,"%H"))
+nyt_articles$hour <- as.numeric(nyt_articles$hour)   
+
+
+# Getting month
+nyt_articles <- nyt_articles |> mutate(month = format(pub_date,"%m"))
+nyt_articles$month <- as.numeric(nyt_articles$month)
+
+
+# Getting day
+nyt_articles <- nyt_articles |> mutate(day = format(pub_date,"%d"))
+nyt_articles$day <- as.numeric(nyt_articles$day)
+
+
+```
+
+```{r}
+day_month <- nyt_articles |> group_by(day,month) |> 
+  summarise(total_comments = sum(n_comments)) |> 
+  ggplot()+
+  geom_segment(mapping = aes(
+    x = day,
+    xend = day,
+    y = 0,
+    yend = total_comments,
+    frame = month
+  ),size = 3,color = "#fdc086") +
+  theme_classic()+
+  labs(
+    x = "Day of the month",
+    y = "Total Comments"
+  )+ 
+  geom_rect(mapping=aes(xmin=0.5, xmax=8.5, ymin=0, ymax=30000), fill="grey", alpha=0.4)+ 
+  geom_rect(mapping=aes(xmin=8.7, xmax=16.5, ymin=0, ymax=30000), fill="grey", alpha=0.4)+ 
+  geom_rect(mapping=aes(xmin=16.7, xmax=23.5, ymin=0, ymax=30000), fill="grey", alpha=0.4)+ 
+  geom_rect(mapping=aes(xmin=23.7, xmax=31.5, ymin=0, ymax=30000), fill="grey", alpha=0.4)+
+  geom_text(mapping = aes(
+    x = 3,
+    y = 25000
+  ),
+  label = "Week 1",alpha = 0.5)+
+  geom_text(mapping = aes(
+    x = 11,
+    y = 25000
+  ),
+  label = "Week 2",alpha = 0.5)+
+  geom_text(mapping = aes(
+    x = 19,
+    y = 25000
+  ),
+  label = "Week 3",alpha = 0.5)+
+  geom_text(mapping = aes(
+    x = 26,
+    y = 25000
+  ),
+  label = "Week 4",alpha = 0.5)
+  
+
+day_month <- ggplotly(day_month) |>  layout(title = list(text = paste0('<b>Distribution of total number of Comments</b>'))) |> 
+  config(displayModeBar = FALSE)
+htmlwidgets::saveWidget(as_widget(day_month), "../images/day_month_a.html")
+day_month
+```
+
+Looking at the plot, we can say that the number of comments are varying on different days for different months. So, this is a thing to remember while building the model as they seem like important features. We try to check the relationship with week number as well.
+
+```{r}
+# Getting week of month
+nyt_articles <- nyt_articles |> mutate(week_count = case_when(
+  day <=8 ~ 1,
+  day >8 & day<=16 ~ 2,
+  day >16 & day <= 23 ~ 3,
+  day > 23 ~ 4
+))
+```
+
+
+```{r}
+check <- nyt_articles |> filter(week_count == 4)
+median(check$n_comments)
+
+check <- nyt_articles |> filter(week_count == 3)
+median(check$n_comments)
+
+check <- nyt_articles |> filter(week_count == 2)
+median(check$n_comments)
+
+check <- nyt_articles |> filter(week_count == 1)
+median(check$n_comments)
+```
+
+We can see that the median is almost the same for every week number which means that our initial hypothesis was not true. So we can take a common threshold for all. We have chosen 100 as a threshold for the popularity.
+
+```{r}
+# Since the median comes out to be 87, we chose 100 as the cut off number
+nyt_articles <- nyt_articles |> mutate(is_popular = case_when(
+  n_comments >= 100 ~ "Yes",
+  TRUE ~ "No"
+))
+```
+
+#### Balance of Target Variable
+
+```{r}
+class_balance <- nyt_articles |> group_by(is_popular) |> tally() |> 
+  ggplot() +
+  geom_bar(mapping = aes(
+    x = is_popular,
+    y = n,
+    fill = is_popular
+  ),
+  stat = "identity",
+  position = "dodge",
+  show.legend = FALSE)+
+  theme_classic()+
+scale_fill_manual(values = c(Yes = "#fdc086", No = "#beaed4"))+
+  labs(
+    x = "Popularity",
+    y = "Count",
+    title = paste0("**Balance of Target Variable Popularity**  
+    <span style='font-size:11pt'>Split by 
+    <span style='color:#fdc086;'>Popular</span> and
+    <span style='color:#beaed4;'>Not Popular</span> articles
+    </span>")
+  )+
+  theme(
+    plot.title = element_markdown(lineheight = 1.1),
+    plot.caption = element_markdown(lineheight = 1.1),
+    legend.text = element_markdown(size = 11)
+  )
+
+
+ggsave("../images/class_balance_avi.png", plot = class_balance)
+class_balance
+```
+
+### Contains Question Mark
+
+
+We try to check if the headline has a question mark or not. A question mark in headline could be seen as an invitation to provide commentery and thus inducing more comments.
+
+```{r}
+# Check if the headline has a question or not
+# In general, question marks could seem like an invitation to comment
+nyt_articles <- nyt_articles |> mutate(contains_question = case_when(
+  grepl("\\?",headline) ~ "Yes",
+  TRUE ~ "No"
+))
+```
+
+```{r}
+question_balance <- nyt_articles  |> 
+  group_by(is_popular,contains_question) |> tally() |> 
+  ggplot() +
+  geom_bar(mapping = aes(
+    x = contains_question,
+    y = n,
+    fill = is_popular
+  ),
+  stat = "identity",
+  position = "fill",
+  show.legend = FALSE)+
+  theme_classic()+
+scale_fill_manual(values = c(Yes = "#fdc086", No = "#beaed4"))+
+  labs(
+    x = "Contains Question Mark",
+    y = "% of Count",
+    title = paste0("**Does including *?* help in terms of popularity**  
+    <span style='font-size:11pt'>Split by 
+    <span style='color:#fdc086;'>Popular</span> and
+    <span style='color:#beaed4;'>Not Popular</span> articles
+    </span>")
+  )+
+  theme(
+    plot.title = element_markdown(lineheight = 1.1),
+    plot.caption = element_markdown(lineheight = 1.1),
+    legend.text = element_markdown(size = 11)
+  )
+
+
+ggsave("../images/question_impact_avi.png", plot = question_balance)
+question_balance
+```
+In general, we can see a litle bit of change in the popularity if question mark is present. The % of Number of popular articles is more when question mark is present. So, we can use this feature in our model.
+
+
+### Weekday vs Weekend
+
+
+```{r}
+# Generating if article was published on weekend or weekday
+nyt_articles <- nyt_articles |> mutate(is_weekend = isWeekend(pub_date)) |> 
+  mutate(is_weekend = case_when(
+    is_weekend == TRUE ~ 1,
+    is_weekend == FALSE ~ 0
+  ))
+
+```
+
+```{r}
+weekend_plot_data <- nyt_articles |> group_by(is_weekend,hour) |> 
+  summarise(avg_comments = mean(n_comments)) |>
+  pivot_wider(id_cols = hour,
+              names_from =is_weekend,
+              values_from = avg_comments) |> 
+  rename("weekday" = "0") |> 
+  rename("weekend" = "1")
+
+weekend_plot<- weekend_plot_data |>   ggplot()+
+  geom_segment(aes(
+    x = hour,
+    xend = hour,
+    y = weekday,
+    yend = weekend
+  ),size = 1)+
+  geom_point(mapping = aes(
+    x = hour,
+    y = weekday
+  ),
+  color = "#beaed4",size =2)+
+  geom_point(mapping = aes(
+    x = hour,
+    y = weekend
+  ),
+  color = "#fdc086",size =2)+
+  theme_classic()+
+  labs(
+    x = "Hour of the day",
+    y = "Average Number of Comments",
+    title = paste0("**Does posting on Weekend increase popularity?**  
+    <span style='font-size:11pt'>
+    <span style='color:#fdc086;'>Weekend</span> and
+    <span style='color:#beaed4;'>Weekday</span> articles
+    </span>")
+  )+
+  theme(
+    plot.title = element_markdown(lineheight = 1.1),
+    plot.caption = element_markdown(lineheight = 1.1),
+    legend.text = element_markdown(size = 11)
+  )
+
+ggsave("../images/weekend_comments_avi.png", plot = weekend_plot)
+weekend_plot
+```
+
+We can see from this plot that on weekdays the hottest time to post your article is around midnight. From 11 pm to 2 am the average number of comments id high. However, on the weekend, posting after 6 pm leads to very high popularity as well. In general, people are a little busy on weekdays and thus more there are more average number of comments on the articles posted on the weekend.
+
+
+### Newsdesk
+```{r}
+library(polycor)
+polychor(nyt_articles$newsdesk, nyt_articles$section)
+
+```
+The correlation between News desk and Section is a little high but not high enough to cause any trouble to our model. One thing that can be done though is to create a new variable that contains both News Desk and Section.
+But before that we try to check the most popular News Desks and sections.
+
+```{r}
+newsdesk_plot1 <- nyt_articles |> 
+  group_by(newsdesk,is_popular) |> tally()
+  
+newsdesk_plot2 <- nyt_articles |> 
+  group_by(newsdesk) |> tally()
+
+newsdesk_plot1 <- newsdesk_plot1 |> 
+  inner_join(newsdesk_plot2, by = "newsdesk") |> 
+  arrange(desc(n.y)) |> 
+  head(40)
+
+newsdesk_plot <- newsdesk_plot1 |>   ggplot()+
+  geom_bar(mapping = aes(
+    x = n.x,
+    y = reorder(newsdesk,n.x),
+    fill = is_popular
+  ),stat = "identity",
+  position = "stack",
+  show.legend = FALSE
+  )+
+  theme_classic()+
+  scale_fill_manual(values = c(Yes = "#fdc086", No = "#beaed4"))+
+  labs(
+    x = "Number of Published Articles",
+    y = "News Desk",
+    title = paste0("**Which *News Desk* publishes Most Articles?**  
+    <span style='font-size:11pt'>Split by 
+    <span style='color:#fdc086;'>Popular</span> and
+    <span style='color:#beaed4;'>Not Popular</span> articles
+    </span>")
+  )+
+  theme(
+    plot.title = element_markdown(lineheight = 1.1),
+    plot.caption = element_markdown(lineheight = 1.1),
+    legend.text = element_markdown(size = 11)
+  )
+ggsave("../images/newsdesk_plot_avi.png", plot = newsdesk_plot)
+newsdesk_plot
+```
+
+
+```{r}
+section_plot1 <- nyt_articles |> 
+  group_by(section,is_popular) |> tally()
+  
+section_plot2 <- nyt_articles |> 
+  group_by(section) |> tally()
+
+section_plot1 <- section_plot1 |> 
+  inner_join(section_plot2, by = "section") |> 
+  arrange(desc(n.y)) |> 
+  head(40)
+
+section_plot <- section_plot1 |>   ggplot()+
+  geom_bar(mapping = aes(
+    x = n.x,
+    y = reorder(section,n.x),
+    fill = is_popular
+  ),stat = "identity",
+  position = "stack",
+  show.legend = FALSE
+  )+
+  theme_classic()+
+  scale_fill_manual(values = c(Yes = "#fdc086", No = "#beaed4"))+
+  labs(
+    x = "Number of Features",
+    y = "Section",
+    title = paste0("**Which *Section* are the Articles most featured in?**  
+    <span style='font-size:11pt'>Split by 
+    <span style='color:#fdc086;'>Popular</span> and
+    <span style='color:#beaed4;'>Not Popular</span> articles
+    </span>")
+  )+
+  theme(
+    plot.title = element_markdown(lineheight = 1.1),
+    plot.caption = element_markdown(lineheight = 1.1),
+    legend.text = element_markdown(size = 11)
+  )
+ggsave("../images/section_plot_avi.png", plot = section_plot)
+section_plot
+```
+
+
+```{r}
+# Saving munged data set
+write.csv(nyt_articles,file = "../data/avi_munging.csv",row.names = FALSE)
+```
+

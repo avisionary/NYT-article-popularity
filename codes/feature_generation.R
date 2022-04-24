@@ -52,6 +52,17 @@ nyt_articles <- nyt_articles |> select(-subsection)
 # To maintain class balance, we define popularity by something close to the median
 median(nyt_articles$n_comments)
 
+
+# Create the function.
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+getmode(nyt_articles$n_comments)
+
+
+
 # Since the median comes out to be 87, we chose 100 as the cut off number
 nyt_articles <- nyt_articles |> mutate(is_popular = case_when(
   n_comments >= 100 ~ "Yes",
