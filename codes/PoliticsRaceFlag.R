@@ -54,7 +54,7 @@ Race_Politics_Barplot = ggplot(data = counts, aes(x = is_political, y = Freq, fi
         axis.text.x = element_text(size = 11),
         axis.title.y = element_text(size = 14),
         axis.title.x = element_text(size = 12),
-        plot.title = element_text(size = 18),
+        plot.title = element_text(size = 15),
         plot.background = element_rect(fill = '#fff1d4'),
         panel.background = element_rect(fill = '#fff1d4'),
         panel.grid.major = element_line(colour ='#e3d5b8'),
@@ -62,7 +62,7 @@ Race_Politics_Barplot = ggplot(data = counts, aes(x = is_political, y = Freq, fi
         legend.background = element_rect(fill = '#fff1d4'))
 
 ggsave('../images/Race_Politics_BarPlot.png', plot = Race_Politics_Barplot)
-# plot(Race_Politics_Barplot)
+plot(Race_Politics_Barplot)
 
 # Write new CSV to dir
 # write.csv(data, file = '../data/oli_munging.csv')
