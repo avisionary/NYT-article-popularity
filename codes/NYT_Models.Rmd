@@ -190,7 +190,7 @@ GBcmPlot = ggplot(gb5.res, aes(x = Var2, y= Var1, fill = Freq)) +
               axis.title.x = element_text(size = 12)) + 
         guides(fill = FALSE, size = FALSE)
 
-ggsave('../images/GB_cm.png', plot = RFcmPlot)
+ggsave('../images/GB_cm.png', plot = GBcmPlot)
 
 ```
 
@@ -243,6 +243,39 @@ ggsave('../images/RF_cm.png', plot = RFcmPlot)
 ```
 
 
-<!-- precision recall -->
+```{r important variables}
 
+imp_var = data.frame(mod.rf5$finalModel$importance)
+imp_var = imp_var[order(-imp_var$MeanDecreaseGini),]
+
+top10_variable <- head(imp_var, 10)
+top10_variable$variables <- rownames(top10_variable)
+
+top10_plot <- ggplot(data = top10_variable) + 
+    geom_bar(mapping = aes(y = reorder(variables,
+                                      MeanDecreaseGini),
+                         x = MeanDecreaseGini),
+           stat = "identity",
+           position = "dodge",
+           fill = "#beaed4") + 
+    theme_classic() +
+    labs(x = "Gini", 
+         y = "Variables",
+         title = paste0("**What are the top *10 most important variables*?**  
+                        <span style='font-size:11pt'>By 
+                        <span style='color:#beaed4;'>Mean Decrease in Gini</span>
+                        </span>")) +
+    theme(plot.title = ggtext::element_markdown(lineheight = 1.1, hjust = 0.5),
+                plot.caption = ggtext::element_markdown(lineheight = 1.1),
+                legend.text = ggtext::element_markdown(size = 11),
+                axis.text.y = element_text(size = 8, angle = 0),
+                axis.text.x = element_text(size = 8),
+                axis.title.y = element_text(size = 14),
+                axis.title.x = element_text(size = 12)) + 
+    guides(fill = FALSE, size = FALSE)
+   
+ggsave('../images/top10varImp.png', plot = top10_plot)
+top10_plot
+
+```
 
