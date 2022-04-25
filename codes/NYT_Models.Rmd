@@ -1,0 +1,248 @@
+---
+title: "NYT Models"
+author: "Olivier Kuhn de Chizelle"
+date: "4/25/2022"
+output: 
+  html_document:
+    theme: sandstone
+    toc: TRUE
+    toc_float: 
+      collapsed: FALSE
+      smooth_scroll: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load Packages, include = FALSE}
+library(randomForest) #for random forests
+library(caret) # for CV folds and data splitting
+library(ROCR) # for diagnostics and ROC plots/stats
+library(pROC) # same as ROCR
+library(stepPlr) # Firth;s logit implemented thru caret library
+library(doParallel) # for using multiple processor cores
+library(skimr)
+library(gt)
+library(corrplot)
+library(GGally)
+library(cvms)
+library(tibble)
+library(dplyr)
+library(stats)
+```
+# Introduction
+## Data
+
+After generating features, the data is now complete and nearly read to be modeled. Let's make sure that each column is in the right data type in order to run models! 
+
+### Load Data
+
+```{r Load and Prepare Data}
+
+data = read.csv('../data/fullDF.csv')
+
+```
+### Subset columns 
+
+```{r Subsetting}
+
+df = data %>% subset(select = c(newsdesk, section, material, word_count, num_keywords, hour, month, day, week_count, is_weekend, contains_question, negative, neutral, positive, compound, is_racial, is_political, is_popular))
+
+```
+
+### Data Processing
+
+### to Factor
+
+```{r to factor}
+
+df$newsdesk = factor(df$newsdesk)
+df$section = factor(df$section)
+df$material = factor(df$material)
+df$is_weekend = factor(df$is_weekend, levels = c(0,1), labels = c('No','Yes'))
+df$contains_question = factor(df$contains_question)
+#df$overall_sentiment = factor(df$overall_sentiment)
+df$is_racial = factor(df$is_racial, levels = c(0,1), labels = c('No','Yes'))
+df$is_political = factor(df$is_political, levels = c(0,1), labels = c('No','Yes'))
+df$is_popular = factor(df$is_popular)
+
+# df$newsdesk = factor(df$newsdesk, levels = 0:(length(unique(df$newsdesk))-1), labels = unique(df$newsdesk))
+# Sambanis$warstds = factor(Sambanis$warstds, levels = c(0,1), labels = c('peace','war'))
+```
+
+# Models
+
+Now that we have completed data preparation, let's begin modeling.
+
+## Logistic Regression
+
+```{r logReg}
+
+
+
+```
+
+## Linear Discriminant Analysis
+
+```{r LDA}
+library(MASS)
+
+
+# fit model
+mod.LDA <- lda(is_popular~., family=multinomial, data=df)
+# summarize the fit
+summary(mod.LDA)
+# make predictions
+predictions = predict(mod.LDA, df[,1:ncol(df)-1])$class
+# summarize accuracy
+LDA.pred = ROCR::prediction(as.numeric(predictions), as.numeric(df$is_popular))
+LDA.perf = performance(LDA.pred, 'tpr','fpr')
+LDA.res = data.frame(table(predictions, df$is_popular))
+LDA.accuracy = sum(LDA.res[LDA.res$predictions == LDA.res$Var2,]$Freq) / sum(LDA.res$Freq)
+
+plot(LDA.perf)
+
+LDAcmPlot = ggplot(LDA.res, aes(x = Var2, y= predictions, fill = Freq)) +
+        geom_tile() + geom_text(aes(label=scales::percent(Freq/sum(Freq)))) +
+        scale_fill_gradient(low="#f7f7f7", high="#beaed4") +
+        labs(x = "Reference",y = "Prediction") +
+        scale_x_discrete(labels=c("No","Yes")) +
+        scale_y_discrete(labels=c("No","Yes")) +
+        theme_minimal() +
+        labs(x = 'Actual',
+             y = 'Predicted',
+             title = paste0("**NYT article popularity prediction — LDA**")) +
+        theme(plot.title = ggtext::element_markdown(lineheight = 1.1, hjust = 0.5),
+              plot.caption = ggtext::element_markdown(lineheight = 1.1),
+              legend.text = ggtext::element_markdown(size = 11),
+              axis.text.y = element_text(size = 8, angle = 0),
+              axis.text.x = element_text(size = 11),
+              axis.title.y = element_text(size = 14),
+              axis.title.x = element_text(size = 12)) + 
+        guides(fill = FALSE, size = FALSE)
+LDAcmPlot
+ggsave('../images/LDA_cm.png', plot = LDAcmPlot)
+
+```
+
+## Decision Tree
+
+```{r DTree}
+
+
+```
+
+## AdaBoost
+
+```{r AdaBoost}
+# 5 fold Cross Validation Train Control
+# tc5<-trainControl(method="cv", 
+#                  number=5, #creates CV folds - 5 for this data
+#                  summaryFunction=twoClassSummary, # provides ROC summary stats in call to model
+#                  savePredictions = TRUE,
+#                  returnData = TRUE,
+#                  classProbs = TRUE)
+# 
+# mod.ab5 = train(as.factor(is_popular) ~ ., metric = 'ROC', method = 'adaboost', trControl = tc5, data = df)
+# 
+# ab5.pred = ROCR::prediction(as.numeric(mod.ab5$pred$pred), as.numeric(mod.ab5$pred$obs))
+# perf.ab5 = performance(ab5.pred, 'tpr','fpr')
+# ab.accuracy5 = sum(mod.ab5$pred$pred == mod.ab5$pred$obs) / length(mod.ab5$pred$pred)
+
+```
+
+## Gradient Boost
+
+```{r gradientBoost}
+
+tc5<-trainControl(method="cv", 
+                 number=5, #creates CV folds - 5 for this data
+                 summaryFunction=twoClassSummary, # provides ROC summary stats in call to model
+                 savePredictions = TRUE,
+                 returnData = TRUE,
+                 classProbs = TRUE)
+#5-FOLD CV
+mod.gb5 = train(as.factor(is_popular) ~ ., metric = 'ROC', method = 'gbm', trControl = tc5, data = df)
+
+gb5.pred = ROCR::prediction(as.numeric(mod.gb5$pred$pred), as.numeric(mod.gb5$pred$obs))
+perf.gb5 = performance(gb5.pred, 'tpr','fpr')
+gb.accuracy5 = sum(mod.gb5$pred$pred == mod.gb5$pred$obs) / length(mod.gb5$pred$pred)
+
+gb5.res = data.frame(table(mod.gb5$pred$pred,mod.gb5$pred$obs))
+
+GBcmPlot = ggplot(gb5.res, aes(x = Var2, y= Var1, fill = Freq)) +
+        geom_tile() + geom_text(aes(label=scales::percent(Freq/sum(Freq)))) +
+        scale_fill_gradient(low="#f7f7f7", high="#beaed4") +
+        labs(x = "Reference",y = "Prediction") +
+        scale_x_discrete(labels=c("No","Yes")) +
+        scale_y_discrete(labels=c("No","Yes")) +
+        theme_minimal() +
+        labs(x = 'Actual',
+             y = 'Predicted',
+             title = paste0("**NYT article popularity prediction — Gradient Boost**")) +
+        theme(plot.title = ggtext::element_markdown(lineheight = 1.1, hjust = 0.5),
+              plot.caption = ggtext::element_markdown(lineheight = 1.1),
+              legend.text = ggtext::element_markdown(size = 11),
+              axis.text.y = element_text(size = 8, angle = 0),
+              axis.text.x = element_text(size = 11),
+              axis.title.y = element_text(size = 14),
+              axis.title.x = element_text(size = 12)) + 
+        guides(fill = FALSE, size = FALSE)
+
+ggsave('../images/GB_cm.png', plot = RFcmPlot)
+
+```
+
+
+
+## Random Forest
+
+```{r RandForest}
+
+mod.rf5 = train(as.factor(is_popular) ~ .,
+                  metric = 'ROC', 
+                  method = 'rf', 
+                  trControl = tc5, 
+                  data = df, 
+                  importance = T, 
+                  proximity = T, 
+                  ntree = 100)
+
+rf5.pred = ROCR::prediction(as.numeric(mod.rf5$pred$pred), as.numeric(mod.rf5$pred$obs))
+perf.rf5 = performance(rf5.pred, 'tpr','fpr')
+rf.accuracy5 = sum(mod.rf5$pred$pred == mod.rf5$pred$obs) / length(mod.rf5$pred$pred)
+
+rf5.predictions = predict(mod.rf5, df[,1:ncol(df)-1])
+rf5.res = data.frame(table(mod.rf5$finalModel$predicted,df$is_popular))
+plot(perf.rf5)
+
+sum(mod.rf5$finalModel$predicted == df$is_popular) / nrow(df)
+
+RFcmPlot = ggplot(rf5.res, aes(x = Var2, y= Var1, fill = Freq)) +
+        geom_tile() + geom_text(aes(label=scales::percent(Freq/sum(Freq)))) +
+        scale_fill_gradient(low="#f7f7f7", high="#beaed4") +
+        labs(x = "Reference",y = "Prediction") +
+        scale_x_discrete(labels=c("No","Yes")) +
+        scale_y_discrete(labels=c("No","Yes")) +
+        theme_minimal() +
+        labs(x = 'Actual',
+             y = 'Predicted',
+             title = paste0("**NYT article popularity prediction — Random Forest**")) +
+        theme(plot.title = ggtext::element_markdown(lineheight = 1.1, hjust = 0.5),
+              plot.caption = ggtext::element_markdown(lineheight = 1.1),
+              legend.text = ggtext::element_markdown(size = 11),
+              axis.text.y = element_text(size = 8, angle = 0),
+              axis.text.x = element_text(size = 11),
+              axis.title.y = element_text(size = 14),
+              axis.title.x = element_text(size = 12)) + 
+        guides(fill = FALSE, size = FALSE)
+
+ggsave('../images/RF_cm.png', plot = RFcmPlot)
+
+```
+
+
+<!-- precision recall -->
+
+
