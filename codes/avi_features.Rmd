@@ -73,7 +73,7 @@ We can see that Subsection has 67% values as missing values. Hence we remove tha
 
 ```{r}
 # Since Subsection is almost empty, we remove it
-nyt_articles <- nyt_articles |> select(-subsection)
+#nyt_articles <- nyt_articles |> select(-subsection)
 ```
 
 ### Duplicate Values
