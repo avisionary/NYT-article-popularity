@@ -44,7 +44,7 @@ counts$is_political = ifelse(counts$is_political == 1, 'yes','no')
 
 ### Let's make a Bar Graph showing Racial and Political Presence
 Race_Politics_Barplot = ggplot(data = counts, aes(x = is_political, y = Freq, fill = is_racial)) +
-  geom_bar(stat = 'identity', position = 'dodge') +
+  geom_bar(stat = 'identity', position = 'dodge', color = 'black') +
   xlab('is_political') +
   ylab('Frequency') +
   theme_classic() +
@@ -63,7 +63,8 @@ Race_Politics_Barplot = ggplot(data = counts, aes(x = is_political, y = Freq, fi
         axis.text.y = element_text(size = 8, angle = 0),
         axis.text.x = element_text(size = 11),
         axis.title.y = element_text(size = 14),
-        axis.title.x = element_text(size = 12))
+        axis.title.x = element_text(size = 12)) + 
+  guides(fill = FALSE, size = FALSE)
 
 plot(Race_Politics_Barplot)
 
