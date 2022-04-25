@@ -1,0 +1,240 @@
+---
+title: "EDA"
+author: "Vinayak Kannan (vk297)"
+date: "24/04/2022"
+output: html_document
+---
+
+```{r}
+# Loading in the libraries
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(skimr)
+library(knitr)
+library(naniar)
+library(GGally)
+library(styler)
+library(ggtext)
+library(data.table)
+library(grid)
+library(timeDate)
+library(ggplot2)
+library(plotly)
+#library(ggplot)
+#library(dpylr)
+```
+
+
+```{r}
+df <-  read.csv("nyt-articles-2020.csv")
+head(df)
+```
+
+```{r}
+str(df)
+```
+
+### creating a month column
+```{r}
+df$pub_date <- as.Date(df$pub_date)
+```
+```{r}
+df$month = format(df$pub_date,"%m")
+```
+
+
+```{r}
+head(df)
+```
+### Seeing populairty for : Newsdesk / section / material
+
+#### Seeing Newsdesk
+
+Lets first see the total number of comments for each News Desk
+
+```{r}
+p4 <- ggplot(df %>%
+                group_by(newsdesk) %>%
+                summarize_at("n_comments",sum,na.rm=T),
+              aes(x = n_comments, y = newsdesk, fill = newsdesk)) +
+  xlab("Total Comments") +
+  ylab("News Desk") +
+  scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+  ggtitle("Which News Desk had the most comments") +
+  # place the legend at the bottom
+  theme(legend.position = "none")+
+  geom_bar(stat="identity",na.rm=TRUE)
+```
+
+```{r}
+p4
+```
+It looks like 'Op Ed" has the most activity on its comments. 
+"Weekend" , "Real Estate" and "New york" seem to be other notable News Desks with respect to the number of comments on the articles.
+
+Let us also see how the number of comments for each news desk changes with time.
+
+```{r}
+p1 <- ggplot(df %>%
+                group_by(month,newsdesk) %>%
+                summarize_at("n_comments",sum,na.rm=T),
+              aes(month,n_comments,fill = newsdesk),fig(400,20)) +
+  xlab("Month") +
+  ylab("Total Comments") +
+  ggtitle("Monthly Total Comments for each News Desk") +
+  # place the legend at the bottom
+  theme(legend.position = "none")+
+  geom_bar(stat="identity",na.rm=TRUE)
+```
+
+```{r}
+ggplotly(p1)
+```
+
+The trend stays common through the year. 
+Op-Ed seems to have the most comments through all the months of the year.
+
+All News Desks seem to stay consistent through the year with regards to their respective range of number of comments.
+
+
+#### Seeing Section
+
+Lets now see the total number of comments for each Section
+
+```{r}
+p5 <- ggplot(df %>%
+                group_by(section) %>%
+                summarize_at("n_comments",sum,na.rm=T),
+              aes(x = n_comments, y = section, fill = section)) +
+  xlab("Total Comments") +
+  ylab("Section") +
+ scale_y_discrete(guide = guide_axis(n.dodge=2))+
+  ggtitle("Which Section had the most comments") +
+  # place the legend at the bottom
+  theme(legend.position = "none")+
+  geom_bar(stat="identity",na.rm=TRUE)
+```
+
+```{r}
+p5
+```
+
+
+
+We see that most sections in the dataset have no comments at all.
+"Opinion" and "US" seem to have the most comments
+
+Let us see the if the trend stays same with time
+
+```{r}
+p2 <- ggplot(df %>%
+                group_by(month,section) %>%
+                summarize_at("n_comments",sum,na.rm=T),
+              aes(month,n_comments,fill = section),fig(400,20)) +
+  xlab("Month") +
+  ylab("Total Comments") +
+  ggtitle("Total Comments by Section") +
+  # place the legend at the bottom
+  theme(legend.position = "none")+
+  geom_bar(stat="identity",na.rm=TRUE)
+```
+
+```{r}
+ggplotly(p2)
+```
+
+
+#### Seeing Material
+
+Lets now see the total number of comments for each Material
+
+```{r}
+p6 <- ggplot(df %>%
+                group_by(material) %>%
+                summarize_at("n_comments",sum,na.rm=T),
+              aes(x = n_comments, y = material, fill = material)) +
+  xlab("Total Comments") +
+  ylab("Material") +
+ #scale_y_discrete(guide = guide_axis(n.dodge=2))+
+  ggtitle("Which Material had the most comments") +
+  # place the legend at the bottom
+  theme(legend.position = "none")+
+  geom_bar(stat="identity",na.rm=TRUE)
+```
+
+```{r}
+p6
+```
+
+"News" is the branch woth the highest comments.
+
+
+
+```{r}
+p3 <- ggplot(df %>%
+                group_by(month,material) %>%
+                summarize_at("n_comments",sum,na.rm=T),
+              aes(month,n_comments,fill = material),fig(400,20)) +
+  xlab("Month") +
+  ylab("Total Comments") +
+  ggtitle("Total Comments by Material") +
+  # place the legend at the bottom
+  theme(legend.position = "none")+
+  geom_bar(stat="identity",na.rm=TRUE)
+```
+
+```{r}
+ggplotly(p3)
+```
+
+
+### Let us Now work with the keywords column
+
+Lets first convert the column into a list
+```{r}
+## Removing the first and last bracket
+library(stringr)
+#df$keywords
+df$keywords <-  str_sub(df$keywords,2,−2)
+```
+
+```{r}
+df$keywords <- strsplit(df$keywords, ",")
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+unnest(df)
+```
+
+```{r}
+impwords <- df %>% group_by(keywords) %>%summarise(number = n())
+```
+
+```{r}
+head(impwords)
+```
+
+
+```{r}
+cols <- c("keywords","count")
+colnames(impwords) <- cols
+```
+
+```{r}
+top_words <- impwords[order(-impwords$count),]
+```
+
+
+Lets look at the top 20 words
+```{r}
+top_words[1:20,]
+```
+The most talked about topic in the year 2020 seems to be Covid19
+This makes sense.
+We see that the top 20 keywords are mostly political terms , and terms related to covid.
+This could mean that most articles were speaking about how different governments dealt with the pandemic.
