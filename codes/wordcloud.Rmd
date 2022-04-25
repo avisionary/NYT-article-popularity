@@ -1,0 +1,138 @@
+---
+title: "EDA"
+author: "Vinayak Kannan (vk297)"
+date: "24/04/2022"
+output: html_document
+---
+
+```{r}
+# Loading in the libraries
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(skimr)
+library(knitr)
+library(naniar)
+library(GGally)
+library(styler)
+library(ggtext)
+library(data.table)
+library(grid)
+library(timeDate)
+library(ggplot2)
+library(plotly)
+#library(ggplot)
+#library(dpylr)
+```
+
+
+```{r}
+df <-  read.csv("nyt-articles-2020.csv")
+head(df)
+```
+
+```{r}
+str(df)
+```
+
+### creating a month column
+```{r}
+df$pub_date <- as.Date(df$pub_date)
+```
+```{r}
+df$month = format(df$pub_date,"%m")
+```
+
+### Let us Now work with the keywords column
+
+Lets first convert the column into a list
+```{r}
+## Removing the first and last bracket
+library(stringr)
+#df$keywords
+df$keywords <-  str_sub(df$keywords,2,−2)
+```
+
+```{r}
+df$keywords <- strsplit(df$keywords, ",")
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+df <- unnest(df)
+```
+
+```{r}
+#df$keywords <- toString(df$keywords)
+head(df)
+```
+
+
+```{r}
+impwords <- df %>% group_by(keywords) %>%summarise(number = n())
+```
+
+```{r}
+head(impwords)
+```
+
+
+```{r}
+cols <- c("keywords","count")
+colnames(impwords) <- cols
+```
+
+```{r}
+top_words <- impwords[order(-impwords$count),]
+```
+
+
+Lets look at the top 20 words
+```{r}
+top_words[1:20,]
+```
+The most talked about topic in the year 2020 seems to be Covid19
+This makes sense.
+We see that the top 20 keywords are mostly political terms , and terms related to covid.
+This could mean that most articles were speaking about how different governments dealt with the pandemic.
+
+```{r}
+# Let us remove the first and last character of the keywords column
+top_words$keywords <-  str_sub(top_words$keywords,2,−2)
+```
+
+```{r}
+head(top_words)
+```
+```{r}
+## Looks like we have to remove the first character again, there might have been a space stored in the string 
+top_words$keywords <-  str_sub(top_words$keywords,2)
+```
+
+```{r}
+head(top_words)
+```
+### Wordcloud
+
+```{r}
+library(ggwordcloud)
+```
+
+```{r}
+df$keywords <- str_sub(df$keywords,3,-2)
+head(df)
+```
+
+```{r}
+p2 <- ggplot(top_words, aes(label = keywords, size = count)) +
+  geom_text_wordcloud() +
+  theme_minimal()
+```
+
+```{r}
+p2
+```
+
