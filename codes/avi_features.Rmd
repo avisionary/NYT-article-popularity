@@ -185,12 +185,12 @@ check <- nyt_articles |> filter(week_count == 1)
 median(check$n_comments)
 ```
 
-We can see that the median is almost the same for every week number which means that our initial hypothesis was not true. So we can take a common threshold for all. We have chosen 100 as a threshold for the popularity.
+We can see that the median is almost the same for every week number which means that our initial hypothesis was not true. So we can take a common threshold for all. We have chosen 150 as a threshold for the popularity.
 
 ```{r}
 # Since the median comes out to be 87, we chose 100 as the cut off number
 nyt_articles <- nyt_articles |> mutate(is_popular = case_when(
-  n_comments >= 100 ~ "Yes",
+  n_comments >= 150 ~ "Yes",
   TRUE ~ "No"
 ))
 ```
