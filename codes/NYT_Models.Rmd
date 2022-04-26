@@ -359,3 +359,66 @@ top10_plot
 
 ```
 
+```{r Logistic Regression and DT confusion matrix Plot from Avi}
+#Logistic Regression
+Var1 = c('No','Yes','No','Yes')
+Var2 = c('No','No','Yes','Yes')
+Freq = c(1760,258,471,869)
+Log.res = data.frame(Var1, Var2, Freq)
+
+
+LogcmPlot = ggplot(Log.res, aes(x = Var2, y= Var1, fill = Freq)) +
+        geom_tile() + geom_text(aes(label=scales::percent(Freq/sum(Freq)))) +
+        scale_fill_gradient(low="#f7f7f7", high="#beaed4") +
+        labs(x = "Reference",y = "Prediction") +
+        scale_x_discrete(labels=c("No","Yes")) +
+        scale_y_discrete(labels=c("No","Yes")) +
+        theme_minimal() +
+        labs(x = 'Actual',
+             y = 'Predicted',
+             title = paste0("**NYT article popularity prediction — Logistic Regression**")) +
+        theme(plot.title = ggtext::element_markdown(lineheight = 1.1, hjust = 0.5),
+              plot.caption = ggtext::element_markdown(lineheight = 1.1),
+              legend.text = ggtext::element_markdown(size = 11),
+              axis.text.y = element_text(size = 8, angle = 0),
+              axis.text.x = element_text(size = 11),
+              axis.title.y = element_text(size = 14),
+              axis.title.x = element_text(size = 12)) + 
+        guides(fill = FALSE, size = FALSE)
+
+LogcmPlot
+ggsave('../images/Log_cm.png', plot = RFcmPlot)
+
+#Decision Tree
+Var1 = c('No','Yes','No','Yes')
+Var2 = c('No','No','Yes','Yes')
+Freq= c(1778,240,495,845)
+DT.res = data.frame(Var1, Var2, Freq)
+
+
+DTcmPlot = ggplot(DT.res, aes(x = Var2, y= Var1, fill = Freq)) +
+        geom_tile() + geom_text(aes(label=scales::percent(Freq/sum(Freq)))) +
+        scale_fill_gradient(low="#f7f7f7", high="#beaed4") +
+        labs(x = "Reference",y = "Prediction") +
+        scale_x_discrete(labels=c("No","Yes")) +
+        scale_y_discrete(labels=c("No","Yes")) +
+        theme_minimal() +
+        labs(x = 'Actual',
+             y = 'Predicted',
+             title = paste0("**NYT article popularity prediction — Decision Tree**")) +
+        theme(plot.title = ggtext::element_markdown(lineheight = 1.1, hjust = 0.5),
+              plot.caption = ggtext::element_markdown(lineheight = 1.1),
+              legend.text = ggtext::element_markdown(size = 11),
+              axis.text.y = element_text(size = 8, angle = 0),
+              axis.text.x = element_text(size = 11),
+              axis.title.y = element_text(size = 14),
+              axis.title.x = element_text(size = 12)) + 
+        guides(fill = FALSE, size = FALSE)
+
+DTcmPlot
+ggsave('../images/DT_cm.png', plot = RFcmPlot)
+
+
+```
+
+
