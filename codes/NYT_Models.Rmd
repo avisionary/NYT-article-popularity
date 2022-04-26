@@ -418,6 +418,35 @@ DTcmPlot = ggplot(DT.res, aes(x = Var2, y= Var1, fill = Freq)) +
 DTcmPlot
 ggsave('../images/DT_cm.png', plot = RFcmPlot)
 
+# Random Forest from AVi
+#Decision Tree
+Var1 = c('No','Yes','No','Yes')
+Var2 = c('No','No','Yes','Yes')
+Freq= c(1820,198,493,847)
+RF.avi = data.frame(Var1, Var2, Freq)
+
+
+AviRFcmPlot = ggplot(RF.avi, aes(x = Var2, y= Var1, fill = Freq)) +
+        geom_tile() + geom_text(aes(label=scales::percent(Freq/sum(Freq)))) +
+        scale_fill_gradient(low="#f7f7f7", high="#beaed4") +
+        labs(x = "Reference",y = "Prediction") +
+        scale_x_discrete(labels=c("No","Yes")) +
+        scale_y_discrete(labels=c("No","Yes")) +
+        theme_minimal() +
+        labs(x = 'Actual',
+             y = 'Predicted',
+             title = paste0("**NYT article popularity prediction — Random Forest**")) +
+        theme(plot.title = ggtext::element_markdown(lineheight = 1.1, hjust = 0.5),
+              plot.caption = ggtext::element_markdown(lineheight = 1.1),
+              legend.text = ggtext::element_markdown(size = 11),
+              axis.text.y = element_text(size = 8, angle = 0),
+              axis.text.x = element_text(size = 11),
+              axis.title.y = element_text(size = 14),
+              axis.title.x = element_text(size = 12)) + 
+        guides(fill = FALSE, size = FALSE)
+
+AviRFcmPlot
+ggsave('../images/AviRF_cm.png', plot = RFcmPlot)
 
 ```
 
